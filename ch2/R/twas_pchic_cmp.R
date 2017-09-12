@@ -66,6 +66,10 @@ GTF$twas<-GTF$ensg %in% foo$twas
 
 ## what is the distribution of non protein coding genes across the genome ?
 
+library(rtracklayer)
+t1d.gr<-import.bed(con='https://www.immunobase.org/downloads/regions-files-archives/latest_1.11/Hs_GRCh37-SLE-assoc_tableBED')
+seqlevels(t1d.gr)<-gsub('chr','',seqlevels(t1d.gr))
+seqlevels(t1d.gr)[seqlevels(t1d.gr)=='X']<-23
 
 
 res<-lapply(c('coloc','pchic','twas'),function(f){
@@ -89,6 +93,11 @@ res<-lapply(c('coloc','pchic','twas'),function(f){
   counts<-sapply(split(ol[,2],ol[,1]),length)
   genome$gc<-0
   genome[as.numeric(names(counts)),]$gc<-counts
+  ## next annotate genome regions that overlap susceptibility regions
+  ol<-as.matrix(findOverlaps(genome,t1d.gr))
+  genome$t1d<-FALSE
+  if(nrow(ol)!=0)
+    genome[ol[,1],]$t1d<-TRUE
   gt<-data.table(data.frame(genome))
   gt$chr<-as.numeric(as.character(gt$seqnames))
   gt[gt$seqnames=='X']$chr<-23
@@ -109,40 +118,13 @@ res<-lapply(c('coloc','pchic','twas'),function(f){
   gt
 })
 
-GTF.pc.nc<-subset(GTF,V2=='protein_coding' & ensg %in% foo$pchic)
 
-## ok get the canonical TSS for this analysis - whilst I realise
-GTF.pc.nc[,coord:=V4]
-GTF.pc.nc[GTF.pc.nc$V7=='-',coord:=V5]
-neg<-GTF.pc.nc[GTF.pc.nc$V7=='-',]
-ps<-GTF.pc.nc[GTF.pc.nc$V7=='+',]
-gr<-rbind(ps[ps[, .I[which.min(V4)], by=ensg]$V1],neg[neg[, .I[which.min(V4)], by=ensg]$V1])[,.(V1,coord)]
-gr<-with(gr,GRanges(seqnames=Rle(V1),range=IRanges(start=coord,end=coord)))
-## get
-
-
-ol<-as.matrix(findOverlaps(genome,gr))
-counts<-sapply(split(ol[,2],ol[,1]),length)
-genome$gc<-0
-genome[as.numeric(names(counts)),]$gc<-counts
-gt<-data.table(data.frame(genome))
-gt$chr<-as.numeric(as.character(gt$seqnames))
-gt[gt$seqnames=='X']$chr<-23
-gt[gt$seqnames=='Y']$chr<-24
-gt<-gt[order(gt$chr,gt$start),]
-
-tmp<-split(gt$end,gt$chr)
-tmp2<-split(gt$start,gt$chr)
-
-cs<-c(0,head(cumsum(as.numeric(sapply(tmp,max))),-1))+1
-for(i in seq_along(tmp)){
-  tmp2[[i]]<-tmp2[[i]] + cs[i]
-}
-
-gt$pstart<-do.call('c',tmp2)
-gt[,pend:=pstart+width]
+res<-rbindlist(res)
+res<-res[res$gc!=0,]
 
 library(ggplot2)
+
+ggplot(res,aes(xmin=pstart,xmax=pend,ymin=0,ymax=gc,fill=t1d)) + geom_rect() + theme_bw() + facet_grid(fac~.)
 
 ggplot(gt,aes(xmin=pstart,xmax=pend,ymin=0,ymax=gc,fill=as.factor(chr%%2))) + geom_rect() + theme_bw()
 break()
