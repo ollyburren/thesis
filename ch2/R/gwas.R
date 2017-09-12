@@ -61,18 +61,25 @@ bl<-melt(ftab,id.vars=c('label','category'),measure.vars=c('n','n.imputed'))
 bl$label<-factor(gsub("\\_"," ",bl$label),levels=gsub("\\_"," ",ftab$label))
 bl$variable<-factor(bl$variable,levels=c('n.imputed','n'))
 
-lab.col<-list(Autoimmune='blue',Blood='red',Metabolic='purple',Other='green')
+lab.col<-list(Autoimmune='orange',Blood='firebrick',Metabolic='purple',Other='black')
 a<-unlist(lab.col[bl$category])
 
 library(ggplot2)
+pdf("~/git/thesis/ch2/pdf/pmi_gwas.pdf")
 ggplot(bl,aes(x=label,y=value,fill=variable)) + geom_bar(color='black',stat='identity') +
     scale_fill_manual(name = 'PMI imputed',label=c('Yes','No'),values=c('black','white')) + theme_bw() +
     theme(axis.text.x=element_text(angle = -45, hjust = 0.0, vjust=1)) +
         theme(axis.text.x=element_text(colour = a)) + ylab("# SNPs") + xlab("Trait") + geom_hline(yintercept =median(ftab$total),color='red')
+dev.off()
 
-pdf("")
 
-ftab<-ftab[,.(category,trait,n,n.imputed,total)]
-
+de.tab<-ftab[,.(category,trait,label,cases,controls,pmid)]
+library('rentrez')
+pdat<-lapply(unique(de.tab$pmid),function(p){
+    tmp<-entrez_summary(db="pubmed", id=p)
+    sprintf("%s et al. (%s)",tmp$authors[1,1],strsplit(tmp$pubdate,' ')[[1]][1])
+})
+names(pdat)<-unique(de.tab$pmid)
+de.tab$author<-pdat[as.character(de.tab$pmid)]
 library(xtable)
-xtable(det2)
+xtable(de.tab)
