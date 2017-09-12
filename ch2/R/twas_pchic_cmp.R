@@ -49,7 +49,7 @@ foo<-list(coloc = "ENSG00000103811", twas = c("ENSG00000005020",
 "ENSG00000254588", "ENSG00000256803", "ENSG00000257354", "ENSG00000257568",
 "ENSG00000258498", "ENSG00000258919", "ENSG00000258922", "ENSG00000259003",
 "ENSG00000259054", "ENSG00000266933", "ENSG00000267607", "ENSG00000272888"
-)
+))
 
 ## load in gtf file
 GTF<-fread('/scratch/ob219/DATA/JAVIERRE_GWAS/support/Homo_sapiens.GRCh37.75.genes.gtf')
@@ -70,9 +70,6 @@ GTF$twas<-GTF$ensg %in% foo$twas
 
 res<-lapply(c('coloc','pchic','twas'),function(f){
   message(f)
-  #GTF.pc.nc<-subset(GTF,V2=='protein_coding' )
-})
-
   max.coord<-GTF[,list(mc=max(V5)),by=V1]
   reso<-1e7
   genome<-lapply(split(max.coord,max.coord$V1),function(m){
@@ -82,7 +79,6 @@ res<-lapply(c('coloc','pchic','twas'),function(f){
   })
   genome<-unlist(GRangesList(genome))
   GTF.pc.nc<-subset(GTF,V2=='protein_coding' & GTF[[f]])
-})
   GTF.pc.nc[,coord:=V4]
   GTF.pc.nc[GTF.pc.nc$V7=='-',coord:=V5]
   neg<-GTF.pc.nc[GTF.pc.nc$V7=='-',]
@@ -109,7 +105,7 @@ res<-lapply(c('coloc','pchic','twas'),function(f){
 
   gt$pstart<-do.call('c',tmp2)
   gt[,pend:=pstart+width]
-  gt$fac<-t
+  gt$fac<-f
   gt
 })
 
@@ -149,7 +145,7 @@ gt[,pend:=pstart+width]
 library(ggplot2)
 
 ggplot(gt,aes(xmin=pstart,xmax=pend,ymin=0,ymax=gc,fill=as.factor(chr%%2))) + geom_rect() + theme_bw()
-
+break()
 ggplot(gt,aes(x=pstart,y=gc,color=as.factor(chr%%2))) + geom_path() + theme_bw()
 
 
@@ -168,16 +164,3 @@ DT.pc<-DT[DT$bt=='protein_coding',]
 by.frag<-split(DT.pc$ensg,DT.pc$V4)
 c<-data.table(table(sapply(by.frag,function(f) length(unique(f)))))
 (1-(c[1,]$N/length(by.frag))) * 100
-
-## what about the whole shooting match
-
-
-
-#    1     2     3     4     5     6     7
-#13599  2567   347    73    13     8     1
-
-
-
-## generate a table of coverage
-
-## how many protein coding covered
