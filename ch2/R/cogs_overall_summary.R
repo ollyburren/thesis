@@ -1,3 +1,5 @@
+library(data.table)
+
 ## joy plot
 DATA.DIR<-'/Users/oliver/DATA/JAVIERRE_GWAS/out/geneScore'
 fs<-list.files(path=DATA.DIR,pattern="*.tab",full.names = TRUE)
@@ -30,6 +32,11 @@ pdf("~/git/thesis/ch2/pdf/cogs_overall_summary.pdf")
 ggplot(tp,aes(x=label,fill=category)) + geom_bar()  + scale_fill_manual(name = "Trait Category",values = c(Autoimmune="darkblue",Blood="red",Metabolic="orange",Other="black")) + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + theme(legend.position=c(0.80, 0.80), legend.background = element_rect(colour = "grey"),legend.text = element_text(size = 15), legend.key = element_rect(colour = "white")) + ylab('# Protein Coding Genes Prioritised') + xlab('Trait')
 dev.off()
 
-ggplot(counts,aes(x=log10(sample.size),y=gc)) + geom_point(aes(colour=category)) + xlab("Log10 (Sample Size)") + ylab ('# Prioritised genes') + geom_smooth(method='lm',formula = y ~ x,se=FALSE) + scale_color_manual(name = "Trait Category",values = c(Autoimmune="darkblue",Blood="red",Metabolic="orange",Other="black")) + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + theme(legend.position=c(0.1, 0.80), legend.background = element_rect(colour = "grey"),legend.text = element_text(size = 15), legend.key = element_rect(colour = "white"))
+median(counts$gc)
+
+pdf("~/git/thesis/ch2/pdf/cogs_overall_sampsize.pdf")
+ggplot(counts,aes(x=sample.size,y=gc)) + geom_point(aes(colour=category),size=3) + xlab("Sample Size") + ylab ('# Prioritised genes')  + scale_color_manual(name = "Trait Category",values = c(Autoimmune="darkblue",Blood="red",Metabolic="orange",Other="black"),guide=FALSE) + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + theme(legend.position=c(0.1, 0.80), legend.background = element_rect(colour = "grey"),legend.text = element_text(size = 15), legend.key = element_rect(colour = "white"))
+dev.off()
+cor.test(counts$gc,counts$sample.size)
 
 quantile(all.dat.pc$all_gene_score,probs=seq(0,1,0.01))

@@ -1,4 +1,5 @@
 library(data.table)
+library(cowplot)
 
 ## CODE TO GENERATE SUMMARY STATS ON GWAS DATASETS USED IN JAVIERRE ET AL
 
@@ -40,7 +41,7 @@ processPMI<-function(f){
 det2<-lapply(all.pmi,processPMI)
 det2<-rbindlist(det2)
 
-## get current table that we want to update 
+## get current table that we want to update
 
 tab<-fread("/Users/oliver/DATA/JAVIERRE_GWAS/support/gwas_manifest.csv")
 ## add reference
@@ -61,18 +62,21 @@ bl<-melt(ftab,id.vars=c('label','category'),measure.vars=c('n','n.imputed'))
 bl$label<-factor(gsub("\\_"," ",bl$label),levels=gsub("\\_"," ",ftab$label))
 bl$variable<-factor(bl$variable,levels=c('n.imputed','n'))
 
-lab.col<-list(Autoimmune='orange',Blood='firebrick',Metabolic='purple',Other='black')
+lab.col<-list(Autoimmune='dodgerblue',Blood='firebrick',Metabolic='seagreen',Other='black')
 a<-unlist(lab.col[bl$category])
 
 library(ggplot2)
-pdf("~/git/thesis/ch2/pdf/pmi_gwas.pdf")
-ggplot(bl,aes(x=label,y=value,fill=variable)) + geom_bar(color='black',stat='identity') +
-    scale_fill_manual(name = 'PMI imputed',label=c('Yes','No'),values=c('black','white')) + theme_bw() +
+library(cowplot)
+#pdf("~/git/thesis/ch2/pdf/pmi_gwas.pdf")
+
+pp <- ggplot(bl[label!='COOPER T1D',],aes(x=label,y=value,fill=variable)) + geom_bar(color='black',stat='identity') +
+    scale_fill_manual(name = 'PMI imputed',label=c('Yes','No'),values=c('grey','white')) +
     theme(axis.text.x=element_text(angle = -45, hjust = 0.0, vjust=1)) +
         theme(axis.text.x=element_text(colour = a)) + ylab("# SNPs") + xlab("Trait") + geom_hline(yintercept =median(ftab$total),color='red')
-dev.off()
+save_plot("~/git/thesis/ch2/pdf/pmi_gwas.pdf",pp,base_height=8)
+#dev.off()
 
-
+stop()
 de.tab<-ftab[,.(category,trait,label,cases,controls,pmid)]
 library('rentrez')
 pdat<-lapply(unique(de.tab$pmid),function(p){
