@@ -49,7 +49,7 @@ foo<-list(coloc = "ENSG00000103811", twas = c("ENSG00000005020",
 "ENSG00000254588", "ENSG00000256803", "ENSG00000257354", "ENSG00000257568",
 "ENSG00000258498", "ENSG00000258919", "ENSG00000258922", "ENSG00000259003",
 "ENSG00000259054", "ENSG00000266933", "ENSG00000267607", "ENSG00000272888"
-)
+))
 
 ## load in gtf file
 GTF<-fread('/scratch/ob219/DATA/JAVIERRE_GWAS/support/Homo_sapiens.GRCh37.75.genes.gtf')
@@ -66,13 +66,14 @@ GTF$twas<-GTF$ensg %in% foo$twas
 
 ## what is the distribution of non protein coding genes across the genome ?
 
+library(rtracklayer)
+t1d.gr<-import.bed(con='https://www.immunobase.org/downloads/regions-files-archives/latest_1.11/Hs_GRCh37-SLE-assoc_tableBED')
+seqlevels(t1d.gr)<-gsub('chr','',seqlevels(t1d.gr))
+seqlevels(t1d.gr)[seqlevels(t1d.gr)=='X']<-23
 
 
 res<-lapply(c('coloc','pchic','twas'),function(f){
   message(f)
-  #GTF.pc.nc<-subset(GTF,V2=='protein_coding' )
-})
-
   max.coord<-GTF[,list(mc=max(V5)),by=V1]
   reso<-1e7
   genome<-lapply(split(max.coord,max.coord$V1),function(m){
@@ -82,7 +83,6 @@ res<-lapply(c('coloc','pchic','twas'),function(f){
   })
   genome<-unlist(GRangesList(genome))
   GTF.pc.nc<-subset(GTF,V2=='protein_coding' & GTF[[f]])
-})
   GTF.pc.nc[,coord:=V4]
   GTF.pc.nc[GTF.pc.nc$V7=='-',coord:=V5]
   neg<-GTF.pc.nc[GTF.pc.nc$V7=='-',]
@@ -93,6 +93,11 @@ res<-lapply(c('coloc','pchic','twas'),function(f){
   counts<-sapply(split(ol[,2],ol[,1]),length)
   genome$gc<-0
   genome[as.numeric(names(counts)),]$gc<-counts
+  ## next annotate genome regions that overlap susceptibility regions
+  ol<-as.matrix(findOverlaps(genome,t1d.gr))
+  genome$t1d<-FALSE
+  if(nrow(ol)!=0)
+    genome[ol[,1],]$t1d<-TRUE
   gt<-data.table(data.frame(genome))
   gt$chr<-as.numeric(as.character(gt$seqnames))
   gt[gt$seqnames=='X']$chr<-23
@@ -109,47 +114,20 @@ res<-lapply(c('coloc','pchic','twas'),function(f){
 
   gt$pstart<-do.call('c',tmp2)
   gt[,pend:=pstart+width]
-  gt$fac<-t
+  gt$fac<-f
   gt
 })
 
-GTF.pc.nc<-subset(GTF,V2=='protein_coding' & ensg %in% foo$pchic)
 
-## ok get the canonical TSS for this analysis - whilst I realise
-GTF.pc.nc[,coord:=V4]
-GTF.pc.nc[GTF.pc.nc$V7=='-',coord:=V5]
-neg<-GTF.pc.nc[GTF.pc.nc$V7=='-',]
-ps<-GTF.pc.nc[GTF.pc.nc$V7=='+',]
-gr<-rbind(ps[ps[, .I[which.min(V4)], by=ensg]$V1],neg[neg[, .I[which.min(V4)], by=ensg]$V1])[,.(V1,coord)]
-gr<-with(gr,GRanges(seqnames=Rle(V1),range=IRanges(start=coord,end=coord)))
-## get
-
-
-ol<-as.matrix(findOverlaps(genome,gr))
-counts<-sapply(split(ol[,2],ol[,1]),length)
-genome$gc<-0
-genome[as.numeric(names(counts)),]$gc<-counts
-gt<-data.table(data.frame(genome))
-gt$chr<-as.numeric(as.character(gt$seqnames))
-gt[gt$seqnames=='X']$chr<-23
-gt[gt$seqnames=='Y']$chr<-24
-gt<-gt[order(gt$chr,gt$start),]
-
-tmp<-split(gt$end,gt$chr)
-tmp2<-split(gt$start,gt$chr)
-
-cs<-c(0,head(cumsum(as.numeric(sapply(tmp,max))),-1))+1
-for(i in seq_along(tmp)){
-  tmp2[[i]]<-tmp2[[i]] + cs[i]
-}
-
-gt$pstart<-do.call('c',tmp2)
-gt[,pend:=pstart+width]
+res<-rbindlist(res)
+res<-res[res$gc!=0,]
 
 library(ggplot2)
 
-ggplot(gt,aes(xmin=pstart,xmax=pend,ymin=0,ymax=gc,fill=as.factor(chr%%2))) + geom_rect() + theme_bw()
+ggplot(res,aes(xmin=pstart,xmax=pend,ymin=0,ymax=gc,fill=t1d)) + geom_rect() + theme_bw() + facet_grid(fac~.)
 
+ggplot(gt,aes(xmin=pstart,xmax=pend,ymin=0,ymax=gc,fill=as.factor(chr%%2))) + geom_rect() + theme_bw()
+break()
 ggplot(gt,aes(x=pstart,y=gc,color=as.factor(chr%%2))) + geom_path() + theme_bw()
 
 
@@ -168,16 +146,3 @@ DT.pc<-DT[DT$bt=='protein_coding',]
 by.frag<-split(DT.pc$ensg,DT.pc$V4)
 c<-data.table(table(sapply(by.frag,function(f) length(unique(f)))))
 (1-(c[1,]$N/length(by.frag))) * 100
-
-## what about the whole shooting match
-
-
-
-#    1     2     3     4     5     6     7
-#13599  2567   347    73    13     8     1
-
-
-
-## generate a table of coverage
-
-## how many protein coding covered
