@@ -50,16 +50,18 @@ setkey(det2,trait)
 
 ftab<-tab[det2]
 ftab<-ftab[ftab$label!='RA',]
-ftab<-ftab[order(ftab$category,ftab$n)]
-ftab[,perc.imp:=round((n.imputed/total)*100)]
 ftab[ftab$category=='T2D',]$category<-'Other'
 ftab[ftab$label=='CD_IMB',label:='CRO']
 ftab[ftab$label=='RA_OKADA_IMB',label:='RA']
+ftab <- ftab[label!='COOPER_T1D',]
+ftab<-ftab[order(-ftab$category,ftab$n)]
+ftab[,perc.imp:=round((n.imputed/total)*100)]
+
 
 library(reshape2)
 
 bl<-melt(ftab,id.vars=c('label','category'),measure.vars=c('n','n.imputed'))
-bl$label<-factor(gsub("\\_"," ",bl$label),levels=gsub("\\_"," ",ftab$label))
+bl$label<-factor(gsub("\\_"," ",bl$label),levels=gsub("\\_"," ",unique(bl$label)))
 bl$variable<-factor(bl$variable,levels=c('n.imputed','n'))
 
 lab.col<-list(Autoimmune='dodgerblue',Blood='firebrick',Metabolic='seagreen',Other='black')
@@ -67,12 +69,12 @@ a<-unlist(lab.col[bl$category])
 
 library(ggplot2)
 library(cowplot)
-#pdf("~/git/thesis/ch2/pdf/pmi_gwas.pdf")
 
 pp <- ggplot(bl[label!='COOPER T1D',],aes(x=label,y=value,fill=variable)) + geom_bar(color='black',stat='identity') +
     scale_fill_manual(name = 'PMI imputed',label=c('Yes','No'),values=c('grey','white')) +
     theme(axis.text.x=element_text(angle = -45, hjust = 0.0, vjust=1)) +
-        theme(axis.text.x=element_text(colour = a)) + ylab("# SNPs") + xlab("Trait") + geom_hline(yintercept =median(ftab$total),color='red')
+    theme(axis.text.x=element_text(colour = a)) + ylab("# SNPs") +
+    xlab("Trait") + geom_hline(yintercept =median(ftab$total),color='red')
 save_plot("~/git/thesis/ch2/pdf/pmi_gwas.pdf",pp,base_height=8)
 #dev.off()
 

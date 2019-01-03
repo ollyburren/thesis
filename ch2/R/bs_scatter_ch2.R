@@ -13,12 +13,14 @@ p <- p + geom_point(data=m.results,aes(x=lm.z,y=mmme.z ,colour=category),size=3,
     xlab("< Myeloid vs Lymphoid Z Score >") +
     ylab("<  Innate Immune vs Megakaryocyte/Erythroblast Z Score >") +
     scale_colour_manual(name = "Trait Category",values = c(Autoimmune="dodgerblue",Blood="firebrick",Metabolic="seagreen",Other="black")) +
-    scale_shape_discrete(name=NULL,guide=FALSE) + coord_flip() +# ylim(c(-3,5.5)) +
-    geom_vline(xintercept=0,alpha=0.3) + geom_hline(yintercept=0,alpha=0.3) + guides(size=FALSE,text=FALSE) +
-    theme(legend.position=c(0.70, 0.80),legend.box.background=element_rect(colour = "white"),panel.background=element_rect(colour="white")) +
-    geom_text_repel(data=m.results,aes(x=lm.z,y=mmme.z,colour=category,label=lm.gwas),inherit.aes = FALSE) +
-    background_grid(major = "xy", minor = "none") +scale_y_continuous(expand = c(0,0)) + scale_x_continuous(expand = c(0,0))
+    scale_shape_discrete(name=NULL,guide=FALSE) + coord_flip() +
+    geom_vline(xintercept=0,alpha=0.3) + geom_hline(yintercept=0,alpha=0.3) +
+    geom_text_repel(data=m.results,aes(x=lm.z,y=mmme.z,colour=category,label=lm.gwas),size=5,inherit.aes = FALSE,show.legend = FALSE) +
+    background_grid(major = "xy", minor = "none") + scale_y_continuous(expand = c(0,0)) + scale_x_continuous(expand = c(0,0)) +
+    theme(legend.position=c(0.70, 0.80), legend.text=element_text(size=15),legend.background=element_rect(fill = "white"),legend.key=element_rect(colour='black'))
 p
+save_plot("/Users/oliver/git/thesis/ch2/pdf/bs_scatter_lm_vs_mmme.pdf",p,base_height=7)
+
 #, legend.background = element_rect(colour = "white"), legend.key = element_rect(colour = "white")) +
 ## compute wilcoxon for for Z scores of ai vs the rest on lymphoid
 
