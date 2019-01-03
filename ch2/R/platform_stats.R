@@ -1,16 +1,26 @@
 library(data.table)
+library(GenomicRanges)
 
 ## code to generate plaform stats for
 
 ## annotations used in Javierre et al.
-DT<-fread('/scratch/ob219/DATA/JAVIERRE_GWAS/support/HindIII_baits_e75.bed')
+DT<-fread('~/rds/hpc-work/DATA/JAVIERRE_GWAS/support/HindIII_baits_e75.bed')
 ## split V5
 DT[, c('name','ensg','bt','strand'):=tstrsplit(V5,':',fixed=TRUE)]
 
 ## load in gtf file
-GTF<-fread('/scratch/ob219/DATA/JAVIERRE_GWAS/support/Homo_sapiens.GRCh37.75.genes.gtf')
+GTF<-fread('~/rds/hpc-work/DATA/JAVIERRE_GWAS/support/Homo_sapiens.GRCh37.75.genes.gtf')
 GTF[,ensg:=gsub('.*"(.*)"',"\\1",tstrsplit(GTF$V9,';',fixed=TRUE,fill=TRUE)[[1]])]
 GTF<-GTF[GTF$V1 %in% unique(DT$V1),]
+
+GTF.summ <- GTF[,list(count=.N),by='V2'][count>500,]
+setnames(GTF.summ,'V2','biotype')
+GTF.summ[,biotype:=factor(biotype,levels=GTF.summ[order(count,decreasing=TRUE),]$biotype)]
+
+pp<-ggplot(GTF.summ[biotype!='protein_coding'],aes(x=biotype,y=count)) + geom_bar(stat="identity") + coord_flip() + ylab("Gene #") + xlab("Biotype")
+save_plot("~/tmp/non_coding_genes.pdf",pp)
+
+
 ## bin ensg by biotype
 
 gbt<-lapply(split(GTF$ensg,GTF$V2),unique)
@@ -37,9 +47,53 @@ GTF.pc.nc[,coord:=V4]
 GTF.pc.nc[GTF.pc.nc$V7=='-',coord:=V5]
 neg<-GTF.pc.nc[GTF.pc.nc$V7=='-',]
 ps<-GTF.pc.nc[GTF.pc.nc$V7=='+',]
-gr<-rbind(ps[ps[, .I[which.min(V4)], by=ensg]$V1],neg[neg[, .I[which.min(V4)], by=ensg]$V1])[,.(V1,coord)]
-gr<-with(gr,GRanges(seqnames=Rle(V1),range=IRanges(start=coord,end=coord)))
-## get
+grp<-rbind(ps[ps[, .I[which.min(V4)], by=ensg]$V1],neg[neg[, .I[which.max(V4)], by=ensg]$V1])[,.(V1,coord)]
+gr<-with(grp,GRanges(seqnames=Rle(V1),range=IRanges(start=coord,end=coord)))
+grp<-rbind(ps[ps[, .I[which.min(V4)], by=ensg]$V1],neg[neg[, .I[which.max(V4)], by=ensg]$V1])[,.(V1,V4,V5)]
+regions_missing<-with(grp,GRanges(seqnames=Rle(paste0("chr",V1)),ranges=IRanges(start=V4,end=V5)))
+
+GTF.pc<-subset(GTF,V2=='protein_coding' & ensg %in% bait.pc )
+
+## ok get the canonical TSS for this analysis - whilst I realise
+GTF.pc[,coord:=V4]
+GTF.pc[GTF.pc$V7=='-',coord:=V5]
+neg<-GTF.pc[GTF.pc$V7=='-',]
+ps<-GTF.pc[GTF.pc$V7=='+',]
+grp<-rbind(ps[ps[, .I[which.min(V4)], by=ensg]$V1],neg[neg[, .I[which.max(V4)], by=ensg]$V1])[,.(V1,V4,V5)]
+regions_found<-with(grp,GRanges(seqnames=Rle(paste0("chr",V1)),ranges=IRanges(start=V4,end=V5)))
+
+library(karyoploteR)
+
+pp <- getDefaultPlotParams(plot.type=2)
+pdf("~/tmp/k1.pdf")
+kp <- plotKaryotype(plot.type=2,chromosome=paste0("chr",c(seq(1,21,by=2),'X')))
+ff <- kpPlotDensity(kp, data=regions_found,data.panel=1,col="firebrick1")
+ff <- kpPlotDensity(kp,data=regions_missing,data.panel=2,col="dodgerblue")
+dev.off()
+
+pdf("~/tmp/k2.pdf")
+kp <- plotKaryotype(plot.type=2,chromosome=paste0("chr",c(seq(2,22,by=2),'Y')))
+ff <- kpPlotDensity(kp, data=regions_found,data.panel=1,col="firebrick1")
+ff <- kpPlotDensity(kp,data=regions_missing,data.panel=2,col="dodgerblue")
+dev.off()
+
+## what about coverage ?
+
+
+
+## how close are these to telomere and centromere ?
+
+cyt <- fread("curl -s 'http://hgdownload.cse.ucsc.edu/goldenPath/hg18/database/cytoBand.txt.gz' | gunzip -c")
+setnames(cyt,c('chr','start','end','arm','band'))
+cent <- cyt[band=='acen',list(start=min(start),end=max(end)),by=chr][,.(chr,bp=start+((end-start)/2))][,type:='cent']
+telo <- rbind(cyt[cyt[,.I[which.min(start)],by=chr]$V1,.(chr,bp=end)],cyt[cyt[,.I[which.max(end)],by=chr]$V1,.(chr,bp=start)])[,type:='telo']
+all.t <- rbind(cent,telo)
+grp[,c('fid','chr'):=list(1:.N,sprintf("chr%s",V1))]
+M <- merge(grp,all.t,by.x='chr',by.y='chr',allow.cartesian=TRUE)
+M[,dist:=abs(coord-bp)]
+M <- M[M[,.I[which.min(dist)],by=fid]$V1,]
+hist(M[V1 %in% 1:22,]$dist)
+
 
 ## get max coord for each chr
 library(GenomicRanges)

@@ -1,0 +1,5 @@
+library(data.table)
+
+JDM.dt <- fread("/home/ob219/rds/rds-cew54-wallace-share/Data/GWAS/jdm-gwas-data/deakin/basicassoc_maf1_210317.csv")
+qqnorm(JDM.dt$STAT)
+qqline(JDM.dt$STAT)
